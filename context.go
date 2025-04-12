@@ -44,6 +44,34 @@ func (c *Context) Next() {
 	}
 }
 
+
+func (c *Context) Header(key string) string {
+	return c.Req.Header.Get(key)
+}
+
+
+
+// ClientIP implements a best effort algorithm to return the real client IP
+func (c *Context) ClientIP() string {
+	// Check for X-Forwarded-For header first
+	if ip := c.Header("X-Forwarded-For"); ip != "" {
+		return strings.Split(ip, ",")[0]
+	}
+
+	// Check for X-Real-Ip header
+	if ip := c.Header("X-Real-Ip"); ip != "" {
+		return ip
+	}
+
+	// Fall back to the remote address
+	ip, _, err := net.SplitHostPort(c.Req.RemoteAddr)
+	if err != nil {
+		return c.Req.RemoteAddr
+	}
+	return ip
+}
+
+
 // QueryArray returns the query string values associated with the given key
 func (c *Context) QueryArray(key string) []string {
 	if values, ok := c.Req.URL.Query()[key]; ok {
