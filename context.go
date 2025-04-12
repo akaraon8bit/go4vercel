@@ -46,7 +46,7 @@ func (c *Context) Next() {
 
 // QueryArray returns the query string values associated with the given key
 func (c *Context) QueryArray(key string) []string {
-	if values, ok := c.Request.URL.Query()[key]; ok {
+	if values, ok := c.Req.URL.Query()[key]; ok {
 		return values
 	}
 	return []string{}
