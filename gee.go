@@ -22,8 +22,16 @@ type (
 		*RouterGroup
 		router *router
 		groups []*RouterGroup // store all groups
+		notFoundHandler HandlerFunc // Add this line
 	}
 )
+
+
+// Add this to gee.go in the gee package
+func (engine *Engine) SetNotFoundHandler(handler HandlerFunc) {
+	engine.notFoundHandler = handler
+}
+
 
 // New is the constructor of gee.Engine
 func New() *Engine {
@@ -101,6 +109,13 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c.handlers = middlewares
 	c.engine = engine
 	engine.router.handle(c)
+
+	// If no route was found and a notFoundHandler is set, call it
+	if c.index == -1 && engine.notFoundHandler != nil {
+		c.handlers = []HandlerFunc{engine.notFoundHandler}
+		c.Next()
+	}
+
 }
 
 func (engine *Engine) Handle(w http.ResponseWriter, req *http.Request)  {
