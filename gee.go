@@ -9,6 +9,8 @@ import (
 // HandlerFunc defines the request handler used by gee
 type HandlerFunc func(*Context)
 
+notFoundHandler HandlerFunc
+
 // Engine implement the interface of ServeHTTP
 type (
 	RouterGroup struct {
@@ -115,6 +117,8 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		c.handlers = []HandlerFunc{engine.notFoundHandler}
 		c.Next()
 	}
+
+	
 
 }
 
