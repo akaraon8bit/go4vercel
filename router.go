@@ -84,16 +84,22 @@ func (r *router) getRoutes(method string) []*node {
 }
 
 func (r *router) handle(c *Context) {
-	n, params := r.getRoute(c.Method, c.Path)
+    n, params := r.getRoute(c.Method, c.Path)
 
-	if n != nil {
-		key := c.Method + "-" + n.pattern
-		c.Params = params
-		c.handlers = append(c.handlers, r.handlers[key])
-	} else {
-		c.handlers = append(c.handlers, func(c *Context) {
-			panic(HttpError{404, fmt.Sprintf("Not found:  %s", c.Path)})
-		})
-	}
-	c.Next()
+    if n != nil {
+        key := c.Method + "-" + n.pattern
+        c.Params = params
+        c.handlers = append(c.handlers, r.handlers[key])
+    } else {
+        // If no route found and engine has a notFoundHandler, use it
+        if c.engine.notFoundHandler != nil {
+            c.handlers = append(c.handlers, c.engine.notFoundHandler)
+        } else {
+            // Default 404 handler
+            c.handlers = append(c.handlers, func(c *Context) {
+                c.JSON(http.StatusNotFound, H{"error": "Not Found"})
+            })
+        }
+    }
+    c.Next()
 }
