@@ -7,6 +7,9 @@ import (
 	"context"
 	"net"
 	"strings"
+	"strconv"
+		"errors"
+	"reflect"
 )
 
 type H map[string]interface{}
@@ -174,4 +177,224 @@ func (c *Context) Get(key string) (interface{}, bool) {
     }
     value := c.Req.Context().Value(contextKey{key})
     return value, value != nil
+}
+
+
+
+
+
+
+
+
+
+
+// GetString returns the string value associated with the key from context
+func (c *Context) GetString(key string) string {
+	if val, ok := c.Get(key); ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+// DefaultQuery returns the key's url query value if it exists, otherwise returns the defaultValue
+func (c *Context) DefaultQuery(key, defaultValue string) string {
+	if value := c.Query(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// StringToInt converts a string to int with error handling
+func StringToInt(s string) (int, error) {
+	return strconv.Atoi(s)
+}
+
+// StringToInt64 converts a string to int64 with error handling
+func StringToInt64(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
+// GetInt returns the int value associated with the key from context
+func (c *Context) GetInt(key string) int {
+	if val, ok := c.Get(key); ok {
+		if i, ok := val.(int); ok {
+			return i
+		}
+	}
+	return 0
+}
+
+// GetInt64 returns the int64 value associated with the key from context
+func (c *Context) GetInt64(key string) int64 {
+	if val, ok := c.Get(key); ok {
+		if i, ok := val.(int64); ok {
+			return i
+		}
+	}
+	return 0
+}
+
+// GetFloat64 returns the float64 value associated with the key from context
+func (c *Context) GetFloat64(key string) float64 {
+	if val, ok := c.Get(key); ok {
+		if f, ok := val.(float64); ok {
+			return f
+		}
+	}
+	return 0
+}
+
+// GetBool returns the bool value associated with the key from context
+func (c *Context) GetBool(key string) bool {
+	if val, ok := c.Get(key); ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+// BindJSON is an alias for ShouldBindJSON for compatibility
+func (c *Context) BindJSON(obj interface{}) error {
+	return c.ShouldBindJSON(obj)
+}
+
+// HTML sends an HTTP response with content-type as text/html
+func (c *Context) HTML(code int, html string) {
+	c.SetHeader("Content-Type", "text/html")
+	c.Status(code)
+	c.Writer.Write([]byte(html))
+}
+
+// ShouldBindQuery binds the query parameters to a struct
+func (c *Context) ShouldBindQuery(obj interface{}) error {
+	values := c.Req.URL.Query()
+	return mapForm(obj, values)
+}
+
+// ... [keep all existing code below] ...
+
+// Helper function for form binding
+func mapForm(ptr interface{}, form map[string][]string) error {
+	typ := reflect.TypeOf(ptr).Elem()
+	val := reflect.ValueOf(ptr).Elem()
+
+	for i := 0; i < typ.NumField(); i++ {
+		typeField := typ.Field(i)
+		structField := val.Field(i)
+		if !structField.CanSet() {
+			continue
+		}
+
+		inputFieldName := typeField.Tag.Get("form")
+		if inputFieldName == "" {
+			inputFieldName = typeField.Name
+		}
+
+		inputValue, exists := form[inputFieldName]
+		if !exists {
+			continue
+		}
+
+		numElems := len(inputValue)
+		if structField.Kind() == reflect.Slice && numElems > 0 {
+			sliceOf := structField.Type().Elem().Kind()
+			slice := reflect.MakeSlice(structField.Type(), numElems, numElems)
+			for i := 0; i < numElems; i++ {
+				if err := setWithProperType(sliceOf, inputValue[i], slice.Index(i)); err != nil {
+					return err
+				}
+			}
+			val.Field(i).Set(slice)
+		} else {
+			if err := setWithProperType(typeField.Type.Kind(), inputValue[0], structField); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Helper function for setting values with proper type
+func setWithProperType(valueKind reflect.Kind, val string, structField reflect.Value) error {
+	switch valueKind {
+	case reflect.Int:
+		return setIntField(val, 0, structField)
+	case reflect.Int8:
+		return setIntField(val, 8, structField)
+	case reflect.Int16:
+		return setIntField(val, 16, structField)
+	case reflect.Int32:
+		return setIntField(val, 32, structField)
+	case reflect.Int64:
+		return setIntField(val, 64, structField)
+	case reflect.Uint:
+		return setUintField(val, 0, structField)
+	case reflect.Uint8:
+		return setUintField(val, 8, structField)
+	case reflect.Uint16:
+		return setUintField(val, 16, structField)
+	case reflect.Uint32:
+		return setUintField(val, 32, structField)
+	case reflect.Uint64:
+		return setUintField(val, 64, structField)
+	case reflect.Bool:
+		return setBoolField(val, structField)
+	case reflect.Float32:
+		return setFloatField(val, 32, structField)
+	case reflect.Float64:
+		return setFloatField(val, 64, structField)
+	case reflect.String:
+		structField.SetString(val)
+	default:
+		return errors.New("unknown type")
+	}
+	return nil
+}
+
+// Helper functions for setting specific types
+func setIntField(val string, bitSize int, field reflect.Value) error {
+	if val == "" {
+		val = "0"
+	}
+	intVal, err := strconv.ParseInt(val, 10, bitSize)
+	if err == nil {
+		field.SetInt(intVal)
+	}
+	return err
+}
+
+func setUintField(val string, bitSize int, field reflect.Value) error {
+	if val == "" {
+		val = "0"
+	}
+	uintVal, err := strconv.ParseUint(val, 10, bitSize)
+	if err == nil {
+		field.SetUint(uintVal)
+	}
+	return err
+}
+
+func setBoolField(val string, field reflect.Value) error {
+	if val == "" {
+		val = "false"
+	}
+	boolVal, err := strconv.ParseBool(val)
+	if err == nil {
+		field.SetBool(boolVal)
+	}
+	return err
+}
+
+func setFloatField(val string, bitSize int, field reflect.Value) error {
+	if val == "" {
+		val = "0.0"
+	}
+	floatVal, err := strconv.ParseFloat(val, bitSize)
+	if err == nil {
+		field.SetFloat(floatVal)
+	}
+	return err
 }
