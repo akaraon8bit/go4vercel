@@ -10,6 +10,7 @@ import (
 	"strconv"
 		"errors"
 	"reflect"
+	 "time" // Add this impor
 )
 
 type H map[string]interface{}
@@ -177,6 +178,53 @@ func (c *Context) Get(key string) (interface{}, bool) {
     }
     value := c.Req.Context().Value(contextKey{key})
     return value, value != nil
+}
+
+
+
+// Value returns the value associated with this context for key, or nil if no value is associated with key.
+// This makes gee.Context compatible with context.Context interface.
+func (c *Context) Value(key interface{}) interface{} {
+    if c.Req == nil || c.Req.Context() == nil {
+        return nil
+    }
+
+    // First try to get the value from our own context storage
+    if k, ok := key.(string); ok {
+        if val, exists := c.Get(k); exists {
+            return val
+        }
+    }
+
+    // Then try to get it from the underlying http.Request context
+    return c.Req.Context().Value(key)
+}
+
+// Deadline returns the time when work done on behalf of this context should be canceled.
+// This makes gee.Context compatible with context.Context interface.
+func (c *Context) Deadline() (deadline time.Time, ok bool) {
+    if c.Req == nil || c.Req.Context() == nil {
+        return
+    }
+    return c.Req.Context().Deadline()
+}
+
+// Done returns a channel that's closed when work done on behalf of this context should be canceled.
+// This makes gee.Context compatible with context.Context interface.
+func (c *Context) Done() <-chan struct{} {
+    if c.Req == nil || c.Req.Context() == nil {
+        return nil
+    }
+    return c.Req.Context().Done()
+}
+
+// Err returns nil if Done is not yet closed, otherwise it returns the reason why it was closed.
+// This makes gee.Context compatible with context.Context interface.
+func (c *Context) Err() error {
+    if c.Req == nil || c.Req.Context() == nil {
+        return nil
+    }
+    return c.Req.Context().Err()
 }
 
 
