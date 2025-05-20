@@ -11,6 +11,9 @@ import (
 		"errors"
 	"reflect"
 	 "time" // Add this impor
+	 "log"
+	 "os"
+	 "io"
 )
 
 type H map[string]interface{}
@@ -30,6 +33,7 @@ type Context struct {
 	index    int
 	// engine pointer
 	engine *Engine
+	logger *log.Logger
 }
 
 func newContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -39,6 +43,7 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Writer: w,
 		index:  -1,
+		logger: log.New(os.Stdout, "", log.LstdFlags),
 	}
 }
 
@@ -252,6 +257,52 @@ func (c *Context) DefaultQuery(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+
+
+
+// Logger returns the context's logger instance
+func (c *Context) Logger() *log.Logger {
+    if c.logger == nil {
+        c.logger = log.New(os.Stdout, "", log.LstdFlags)
+    }
+    return c.logger
+}
+
+// SetLogger sets a custom logger for the context
+func (c *Context) SetLogger(logger *log.Logger) {
+    c.logger = logger
+}
+
+// SetLoggerOutput sets the output destination for the logger
+func (c *Context) SetLoggerOutput(w io.Writer) {
+    c.Logger().SetOutput(w)
+}
+
+// LogDebug logs a debug message
+func (c *Context) LogDebug(format string, v ...interface{}) {
+    c.Logger().Printf("[DEBUG] "+format, v...)
+}
+
+// LogInfo logs an info message
+func (c *Context) LogInfo(format string, v ...interface{}) {
+    c.Logger().Printf("[INFO] "+format, v...)
+}
+
+// LogWarning logs a warning message
+func (c *Context) LogWarning(format string, v ...interface{}) {
+    c.Logger().Printf("[WARN] "+format, v...)
+}
+
+// LogError logs an error message
+func (c *Context) LogError(format string, v ...interface{}) {
+    c.Logger().Printf("[ERROR] "+format, v...)
+}
+
+// LogFatal logs a fatal message and exits
+func (c *Context) LogFatal(format string, v ...interface{}) {
+    c.Logger().Fatalf("[FATAL] "+format, v...)
 }
 
 // StringToInt converts a string to int with error handling
