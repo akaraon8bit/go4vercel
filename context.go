@@ -15,6 +15,14 @@ import (
 	 "os"
 	 "io"
 )
+const (
+	LogLevelDebug = iota
+	LogLevelInfo
+	LogLevelWarn
+	LogLevelError
+	LogLevelFatal
+)
+
 
 type H map[string]interface{}
 
@@ -33,17 +41,22 @@ type Context struct {
 	index    int
 	// engine pointer
 	engine *Engine
-	logger *log.Logger
+	logger     *log.Logger
+	logLevel   int
+	logOutput  io.Writer
 }
 
 func newContext(w http.ResponseWriter, req *http.Request) *Context {
+	logger := log.New(os.Stdout, "", log.LstdFlags)
 	return &Context{
 		Path:   req.URL.Path,
 		Method: req.Method,
 		Req:    req,
 		Writer: w,
 		index:  -1,
-		logger: log.New(os.Stdout, "", log.LstdFlags),
+		logger:   logger,
+	logLevel: LogLevelInfo, // Default log level
+	logOutput: os.Stdout,
 	}
 }
 
@@ -262,47 +275,63 @@ func (c *Context) DefaultQuery(key, defaultValue string) string {
 
 
 
-// Logger returns the context's logger instance
+// Logger returns the context's logger instance with request context
 func (c *Context) Logger() *log.Logger {
-    if c.logger == nil {
-        c.logger = log.New(os.Stdout, "", log.LstdFlags)
-    }
-    return c.logger
+	if c.logger == nil {
+		c.logger = log.New(c.logOutput, "", log.LstdFlags)
+	}
+	// Include basic request info in the logger prefix
+	prefix := fmt.Sprintf("[%s] %s %s ", c.Method, c.Path, time.Now().Format("2006-01-02 15:04:05"))
+	c.logger.SetPrefix(prefix)
+	return c.logger
 }
 
-// SetLogger sets a custom logger for the context
-func (c *Context) SetLogger(logger *log.Logger) {
-    c.logger = logger
+// SetLogLevel sets the logging level
+func (c *Context) SetLogLevel(level int) {
+	c.logLevel = level
 }
 
 // SetLoggerOutput sets the output destination for the logger
 func (c *Context) SetLoggerOutput(w io.Writer) {
-    c.Logger().SetOutput(w)
+	c.logOutput = w
+	if c.logger != nil {
+		c.logger.SetOutput(w)
+	}
 }
 
 // LogDebug logs a debug message
 func (c *Context) LogDebug(format string, v ...interface{}) {
-    c.Logger().Printf("[DEBUG] "+format, v...)
+	if c.logLevel <= LogLevelDebug {
+		c.Logger().Printf("[DEBUG] "+format, v...)
+	}
 }
 
 // LogInfo logs an info message
 func (c *Context) LogInfo(format string, v ...interface{}) {
-    c.Logger().Printf("[INFO] "+format, v...)
+	if c.logLevel <= LogLevelInfo {
+		c.Logger().Printf("[INFO] "+format, v...)
+	}
 }
 
 // LogWarning logs a warning message
 func (c *Context) LogWarning(format string, v ...interface{}) {
-    c.Logger().Printf("[WARN] "+format, v...)
+	if c.logLevel <= LogLevelWarn {
+		c.Logger().Printf("[WARN] "+format, v...)
+	}
 }
 
 // LogError logs an error message
 func (c *Context) LogError(format string, v ...interface{}) {
-    c.Logger().Printf("[ERROR] "+format, v...)
+	if c.logLevel <= LogLevelError {
+		c.Logger().Printf("[ERROR] "+format, v...)
+	}
 }
 
 // LogFatal logs a fatal message and exits
 func (c *Context) LogFatal(format string, v ...interface{}) {
-    c.Logger().Fatalf("[FATAL] "+format, v...)
+	if c.logLevel <= LogLevelFatal {
+		c.Logger().Fatalf("[FATAL] "+format, v...)
+	}
 }
 
 // StringToInt converts a string to int with error handling
