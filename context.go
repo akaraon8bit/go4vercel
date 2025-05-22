@@ -44,6 +44,8 @@ type Context struct {
 	logger     *log.Logger
 	logLevel   int
 	logOutput  io.Writer
+
+	 Errors []error
 }
 
 func newContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -74,6 +76,9 @@ func (c *Context) Header(key string) string {
 }
 
 
+func (c *Context) Error(err error) {
+    c.Errors = append(c.Errors, err)
+}
 
 // ClientIP implements a best effort algorithm to return the real client IP
 func (c *Context) ClientIP() string {
