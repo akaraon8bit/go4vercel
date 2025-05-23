@@ -80,6 +80,14 @@ func (c *Context) Error(err error) {
     c.Errors = append(c.Errors, err)
 }
 
+func (c *Context) Written() bool {
+    if c.Writer == nil {
+        return false
+    }
+    // Check if the status code has been set
+    return c.StatusCode != 0
+}
+
 // ClientIP implements a best effort algorithm to return the real client IP
 func (c *Context) ClientIP() string {
 	// Check for X-Forwarded-For header first
