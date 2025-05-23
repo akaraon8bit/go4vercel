@@ -36,6 +36,9 @@ type Context struct {
 	Params map[string]string
 	// response info
 	StatusCode int
+
+	written    bool // Add this field to track if response has been written
+
 	// middleware
 	handlers []HandlerFunc
 	index    int
@@ -84,9 +87,9 @@ func (c *Context) Written() bool {
     if c.Writer == nil {
         return false
     }
-    // Check if the status code has been set
-    return c.StatusCode != 0
+    return c.written || c.StatusCode != 0
 }
+
 
 // ClientIP implements a best effort algorithm to return the real client IP
 func (c *Context) ClientIP() string {
@@ -151,6 +154,7 @@ func (c *Context) Query(key string) string {
 func (c *Context) Status(code int) {
 	c.StatusCode = code
 	c.Writer.WriteHeader(code)
+	c.written = true
 }
 
 func (c *Context) SetHeader(key string, value string) {
@@ -161,6 +165,7 @@ func (c *Context) String(code int, format string, values ...interface{}) {
 	c.SetHeader("Content-Type", "text/plain")
 	c.Status(code)
 	c.Writer.Write([]byte(fmt.Sprintf(format, values...)))
+	c.written = true
 }
 
 func (c *Context) JSON(code int, obj interface{}) {
@@ -170,6 +175,7 @@ func (c *Context) JSON(code int, obj interface{}) {
 	if err := encoder.Encode(obj); err != nil {
 		http.Error(c.Writer, err.Error(), 500)
 	}
+	c.written = true
 }
 
 // ShouldBindJSON binds the request body to a struct
@@ -181,6 +187,7 @@ func (c *Context) ShouldBindJSON(obj interface{}) error {
 func (c *Context) Data(code int, data []byte) {
 	c.Status(code)
 	c.Writer.Write(data)
+	c.written = true
 }
 
 
@@ -407,6 +414,7 @@ func (c *Context) HTML(code int, html string) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
 	c.Writer.Write([]byte(html))
+	 c.written = true
 }
 
 // ShouldBindQuery binds the query parameters to a struct
