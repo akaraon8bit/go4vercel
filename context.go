@@ -66,11 +66,16 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 }
 
 func (c *Context) Next() {
-	c.index++
-	s := len(c.handlers)
-	for ; c.index < s; c.index++ {
-		c.handlers[c.index](c)
-	}
+    if c == nil {
+        return
+    }
+    c.index++
+    s := len(c.handlers)
+    for ; c.index < s; c.index++ {
+        if c.handlers[c.index] != nil {
+            c.handlers[c.index](c)
+        }
+    }
 }
 
 
@@ -84,7 +89,7 @@ func (c *Context) Error(err error) {
 }
 
 func (c *Context) Written() bool {
-    if c.Writer == nil {
+	if c == nil || c.Writer == nil {
         return false
     }
     return c.written || c.StatusCode != 0
@@ -169,6 +174,10 @@ func (c *Context) String(code int, format string, values ...interface{}) {
 }
 
 func (c *Context) JSON(code int, obj interface{}) {
+	if c == nil || c.Writer == nil {
+		 return
+ }
+ 
 	c.SetHeader("Content-Type", "application/json")
 	c.Status(code)
 	encoder := json.NewEncoder(c.Writer)
